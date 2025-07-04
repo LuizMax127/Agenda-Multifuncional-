@@ -1,0 +1,247 @@
+<!DOCTYPE html><html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jogo Plataforma - Fases e Dificuldade</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #87CEEB; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; background: #6B8E23; margin: auto; border: 4px solid #333; }
+    #startScreen, #gameOverScreen, #nextLevelScreen {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      z-index: 10;
+    }
+    button {
+      font-size: 20px;
+      padding: 10px 20px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="startScreen">
+    <div>Jogo Plataforma - Fases</div>
+    <button onclick="startGame()">Iniciar Jogo</button>
+  </div>  <div id="gameOverScreen" style="display: none;">
+    <div id="finalScore"></div>
+    <button onclick="restartGame()">Jogar Novamente</button>
+  </div>  <div id="nextLevelScreen" style="display: none;">
+    <div id="levelText"></div>
+    <button onclick="nextLevel()">Próxima Fase</button>
+  </div><canvas id="gameCanvas" width="800" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const jumpSound = new Audio("data:audio/wav;base64,UklGRhQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YYQAAAAA//8AAP//AAD//wAA//8AAP//AAD//wAA");
+    const coinSound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YaAAAAAA//8AAP//AAD//wAA//8AAP//AAD//wAA");
+    const deathSound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YaAAAAAA//8AAP8AAP8AAP8AAP//AAD//wAA//8A");
+    const bgMusic = new Audio("data:audio/wav;base64,UklGRjQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YaAAAAAA");
+    bgMusic.loop = true;
+
+    let level = parseInt(localStorage.getItem("faseAtual")) || 1;
+    let started = false;
+
+    const keys = {};
+
+    const player = {
+      x: 50,
+      y: 300,
+      width: 40,
+      height: 40,
+      vx: 0,
+      vy: 0,
+      speed: 3,
+      jumpPower: 10,
+      onGround: false,
+      lives: 3,
+      score: 0
+    };
+
+    const gravity = 0.5;
+
+    let platforms = [];
+    let coins = [];
+    let enemies = [];
+
+    function generateLevel(fase) {
+      platforms = [
+        { x: 0, y: 350, width: 800, height: 50 },
+      ];
+      coins = [];
+      enemies = [];
+
+      for (let i = 0; i < fase + 1; i++) {
+        const px = 150 + i * 100;
+        const py = 350 - 70 - i * 10;
+        platforms.push({ x: px, y: py, width: 100, height: 10 });
+        coins.push({ x: px + 30, y: py - 30, width: 20, height: 20, collected: false });
+        if (i % 2 === 0) {
+          enemies.push({ x: px + 20, y: py + 20, width: 30, height: 20, direction: 1 });
+        }
+      }
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = "#FF4500";
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    function drawRectArray(arr, color) {
+      ctx.fillStyle = color;
+      arr.forEach(o => {
+        if (!o.collected) ctx.fillRect(o.x, o.y, o.width, o.height);
+      });
+    }
+
+    function drawHUD() {
+      ctx.fillStyle = "#000";
+      ctx.font = "20px Arial";
+      ctx.fillText(`Fase: ${level}`, 10, 25);
+      ctx.fillText(`Vidas: ${player.lives}`, 10, 50);
+      ctx.fillText(`Pontuação: ${player.score}`, 10, 75);
+    }
+
+    function handleInput() {
+      if (keys["ArrowLeft"] || keys["a"]) player.vx = -player.speed;
+      else if (keys["ArrowRight"] || keys["d"]) player.vx = player.speed;
+      else player.vx = 0;
+
+      if ((keys["ArrowUp"] || keys["w"] || keys[" "]) && player.onGround) {
+        player.vy = -player.jumpPower;
+        player.onGround = false;
+        jumpSound.play();
+      }
+    }
+
+    function applyPhysics() {
+      player.vy += gravity;
+      player.x += player.vx;
+      player.y += player.vy;
+      player.onGround = false;
+
+      platforms.forEach(p => {
+        if (
+          player.x < p.x + p.width &&
+          player.x + player.width > p.x &&
+          player.y + player.height > p.y &&
+          player.y + player.height < p.y + p.height
+        ) {
+          player.y = p.y - player.height;
+          player.vy = 0;
+          player.onGround = true;
+        }
+      });
+
+      coins.forEach(c => {
+        if (!c.collected &&
+            player.x < c.x + c.width &&
+            player.x + player.width > c.x &&
+            player.y < c.y + c.height &&
+            player.y + player.height > c.y) {
+          c.collected = true;
+          player.score += 10;
+          coinSound.play();
+        }
+      });
+
+      enemies.forEach(e => {
+        if (
+          player.x < e.x + e.width &&
+          player.x + player.width > e.x &&
+          player.y < e.y + e.height &&
+          player.y + player.height > e.y
+        ) {
+          player.lives--;
+          deathSound.play();
+          resetPlayer();
+        }
+      });
+
+      if (player.y > canvas.height) {
+        player.lives--;
+        deathSound.play();
+        resetPlayer();
+      }
+
+      if (coins.every(c => c.collected)) {
+        localStorage.setItem("faseAtual", level + 1);
+        document.getElementById("nextLevelScreen").style.display = "flex";
+        document.getElementById("levelText").innerText = `Fase ${level} concluída!`;
+        level++;
+        started = false;
+      }
+    }
+
+    function updateEnemies() {
+      enemies.forEach(e => {
+        e.x += e.direction * (1.2 + level * 0.2);
+        if (e.x < 0 || e.x > canvas.width - e.width) e.direction *= -1;
+      });
+    }
+
+    function resetPlayer() {
+      if (player.lives <= 0) {
+        document.getElementById("gameOverScreen").style.display = "flex";
+        document.getElementById("finalScore").innerText = `Game Over! Pontuação: ${player.score}`;
+        bgMusic.pause();
+        localStorage.removeItem("faseAtual");
+      } else {
+        player.x = 50;
+        player.y = 300;
+        player.vy = 0;
+      }
+    }
+
+    function gameLoop() {
+      if (!started) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      handleInput();
+      applyPhysics();
+      updateEnemies();
+      drawRectArray(platforms, "#654321");
+      drawRectArray(coins, "#FFD700");
+      drawRectArray(enemies, "#8B0000");
+      drawPlayer();
+      drawHUD();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+      document.getElementById("startScreen").style.display = "none";
+      generateLevel(level);
+      bgMusic.play();
+      started = true;
+      gameLoop();
+    }
+
+    function nextLevel() {
+      document.getElementById("nextLevelScreen").style.display = "none";
+      generateLevel(level);
+      player.x = 50;
+      player.y = 300;
+      player.vy = 0;
+      started = true;
+      gameLoop();
+    }
+
+    function restartGame() {
+      localStorage.removeItem("faseAtual");
+      location.reload();
+    }
+
+    window.addEventListener("keydown", e => keys[e.key] = true);
+    window.addEventListener("keyup", e => keys[e.key] = false);
+  </script></body>
+</html>
