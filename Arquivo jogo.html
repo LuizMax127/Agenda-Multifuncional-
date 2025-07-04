@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Clique Maluco 🔥</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: url('https://source.unsplash.com/1600x900/?explosion') no-repeat center center fixed;
+      background-size: cover;
+      overflow: hidden;
+    }
+
+    #gameArea {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    #btn {
+      position: absolute;
+      padding: 14px 22px;
+      background: linear-gradient(145deg, #283593, #1e1e6a);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 18px;
+      box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease, background-color 0.3s ease;
+    }
+
+    .btn-falso {
+      background: linear-gradient(145deg, #f44336, #ff1744); /* Vermelho */
+      font-size: 18px;
+    }
+
+    #score, #life {
+      font-size: 20px;
+      font-weight: bold;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+    }
+
+    #life {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+    }
+
+    #gameOver {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 28px;
+      color: #fff;
+      background: rgba(0,0,0,0.7);
+      padding: 30px 40px;
+      border-radius: 15px;
+      display: none;
+      text-align: center;
+    }
+
+    #restart, #startAgain {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #2e7d32;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    #restart:hover, #startAgain:hover {
+      background-color: #1b5e20;
+    }
+
+    #menu {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+
+    #menu button {
+      padding: 20px 40px;
+      background-color: #283593;
+      color: white;
+      border: none;
+      font-size: 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 10px;
+    }
+
+    #menu button:hover {
+      background-color: #1e1e6a;
+    }
+
+    #gameTitle {
+      font-size: 28px;
+      color: #fff;
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: bold;
+      background: rgba(0,0,0,0.5);
+      padding: 10px 20px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="menu">
+    <button onclick="startGame('normal')">Modo Normal</button>
+    <button onclick="startGame('explosivo')">Modo Explosivo</button>
+  </div>
+
+  <div id="gameArea">
+    <div id="gameTitle">Modo Normal</div>
+    <div id="score">Pontos: 0</div>
+    <div id="life">Vidas: 3</div>
+    <button id="btn">Clique!</button>
+    <div id="gameOver">
+      <div>☠️ Fim de Jogo!</div>
+      <div id="finalScore">Você fez X pontos</div>
+      <button id="restart" onclick="startGame()">Jogar Novamente</button>
+      <button id="startAgain" onclick="backToStart()">Voltar ao Início</button>
+    </div>
+  </div>
+
+  <script>
+    // Sons hospedados
+    const somClique = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-click-coin-coin-coin-946.mp3');
+    const somErro = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-wrong-answer-fail-notification-946.mp3');
+    const somVida = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-life-lost-906.mp3');
+    const somGameOver = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-game-over-fail-907.mp3');
+
+    let score = 0;
+    let lives = 3;
+    let timeoutId;
+    let speed = 1500;
+    let btnSize = 100;
+    let mode = '';
+    let isFalso = false;
+
+    function randomPosition() {
+      const gameWidth = window.innerWidth;
+      const gameHeight = window.innerHeight;
+      const maxX = gameWidth - btn.offsetWidth;
+      const maxY = gameHeight - btn.offsetHeight;
+      const x = Math.random() * maxX;
+      const y = Math.random() * maxY;
+      btn.style.left = `${x}px`;
+      btn.style.top = `${y}px`;
+    }
+
+    function updateGame() {
+      clearTimeout(timeoutId);
+      randomPosition();
+
+      if (score > 0 && score % 5 === 0 && speed > 500) {
+        speed -= 100; // Aumenta a velocidade
+        btnSize -= 5; // Diminui o botão
+        btn.style.padding = `${btnSize / 7}px ${btnSize / 4}px`;
+        btn.style.fontSize = `${btnSize / 8 + 8}px`;
+      }
+
+      if (mode === 'explosivo' && Math.random() < 0.2) {
+        isFalso = true;
+        btn.classList.add('btn-falso');
+        btn.textContent = 'FALSO!';
+        setTimeout(() => {
+          isFalso = false;
+          btn.classList.remove('btn-falso');
+          btn.textContent = 'Clique!';
+        }, 2000); // 2 segundos para o botão falso sumir
+      } else {
+        isFalso = false;
+        btn.classList.remove('btn-falso');
+        btn.textContent = 'Clique!';
+      }
+
+      timeoutId = setTimeout(gameOver, speed);
+    }
+
+    function gameOver() {
+      somGameOver.play();
+      btn.style.display = "none";
+      gameOverScreen.style.display = "block";
+      finalScoreText.textContent = `Você fez ${score} ponto${score === 1 ? '' : 's'}`;
+    }
+
+    function startGame(modeEscolhido) {
+      mode = modeEscolhido;
+      score = 0;
+      lives = 3;
+      speed = 1500;
+      btnSize = 100;
+      scoreText.textContent = "Pontos: 0";
+      gameOverScreen.style.display = "none";
+      btn.style.display = "inline-block";
+      btn.style.padding = "14px 22px";
+      btn.style.fontSize = "16px";
+      updateGame();
+      document.getElementById("menu").style.display = "none";
+      document.getElementById("gameArea").style.display = "block";
+      document.getElementById("gameTitle").textContent = `Modo ${modeEscolhido.charAt(0).toUpperCase() + modeEscolhido.slice(1)}`;
+    }
+
+    function checkClick() {
+      if (isFalso) {
+        somErro.play();
+        setTimeout(() => {
+          lives--;
+          somVida.play();
+          if (lives <= 0) {
+            gameOver();
+          }
+        }, 2000); // Espera 2 segundos antes de perder vida
+      } else {
+        somClique.play();
+        score++;
+        scoreText.textContent = `Pontos: ${score}`;
+      }
+
+      lifeText.textContent = `Vidas: ${lives}`;
+      updateGame();
+    }
+
+    function backToStart() {
+      document.getElementById("menu").style.display = "flex";
+      document.getElementById("gameArea").style.display = "none";
+    }
+
+    btn.addEventListener("click", checkClick);
+
+    const scoreText = document.getElementById("score");
+    const lifeText = document.getElementById("life");
+    const gameOverScreen = document.getElementById("gameOver");
+    const finalScoreText = document.getElementById("finalScore");
+  </script>
+</body>
+</html>
