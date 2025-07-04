@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>📋 Lista de Tarefas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #e0f7fa, #fce4ec);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    input[type="text"] {
+      padding: 12px;
+      width: 70%;
+      font-size: 16px;
+      border: 2px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .btn-adicionar {
+      background-color: #00bfa5;
+      color: white;
+    }
+
+    .btn-limpar {
+      background-color: #888;
+      color: white;
+      margin-top: 20px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin-top: 20px;
+    }
+
+    li {
+      background-color: #f0f0f0;
+      margin-bottom: 10px;
+      padding: 12px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.3s ease;
+    }
+
+    li.concluida span {
+      text-decoration: line-through;
+      color: #999;
+    }
+
+    .btn-remover {
+      background-color: #f44336;
+      color: white;
+      padding: 6px 10px;
+      font-size: 14px;
+      border: none;
+      border-radius: 6px;
+      margin-left: 10px;
+    }
+
+    span {
+      flex-grow: 1;
+      text-align: left;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>📋 Minha Lista de Tarefas</h1>
+
+    <input type="text" id="tarefa" placeholder="Digite uma tarefa...">
+    <button class="btn-adicionar" onclick="adicionarTarefa()">Adicionar</button>
+
+    <ul id="listaTarefas"></ul>
+
+    <button class="btn-limpar" onclick="limparTarefas()">🧹 Limpar Tudo</button>
+  </div>
+
+  <script>
+    let tarefas = [];
+
+    window.onload = function () {
+      const salvas = localStorage.getItem("tarefas");
+      if (salvas) {
+        tarefas = JSON.parse(salvas);
+        tarefas.forEach(t => criarElemento(t.texto, t.concluida));
+      }
+    };
+
+    function adicionarTarefa() {
+      const input = document.getElementById("tarefa");
+      const texto = input.value.trim();
+      if (texto !== "") {
+        const tarefa = { texto: texto, concluida: false };
+        tarefas.push(tarefa);
+        salvar();
+        criarElemento(texto, false);
+        input.value = "";
+      }
+    }
+
+    function criarElemento(texto, concluida) {
+      const li = document.createElement("li");
+      if (concluida) li.classList.add("concluida");
+
+      const span = document.createElement("span");
+      span.textContent = texto;
+      span.onclick = function () {
+        li.classList.toggle("concluida");
+        atualizarConcluida(texto);
+        salvar();
+      };
+
+      const btn = document.createElement("button");
+      btn.textContent = "X";
+      btn.className = "btn-remover";
+      btn.onclick = function () {
+        li.remove();
+        removerTarefa(texto);
+        salvar();
+      };
+
+      li.appendChild(span);
+      li.appendChild(btn);
+      document.getElementById("listaTarefas").appendChild(li);
+    }
+
+    function salvar() {
+      localStorage.setItem("tarefas", JSON.stringify(tarefas));
+    }
+
+    function removerTarefa(texto) {
+      tarefas = tarefas.filter(t => t.texto !== texto);
+    }
+
+    function atualizarConcluida(texto) {
+      tarefas = tarefas.map(t => {
+        if (t.texto === texto) {
+          t.concluida = !t.concluida;
+        }
+        return t;
+      });
+    }
+
+    function limparTarefas() {
+      if (confirm("Tem certeza que deseja apagar tudo?")) {
+        tarefas = [];
+        salvar();
+        document.getElementById("listaTarefas").innerHTML = "";
+      }
+    }
+  </script>
+
+</body>
+</html>
